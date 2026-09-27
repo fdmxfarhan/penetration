@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Devices</title>
+
+    <link
+        rel="stylesheet"
+        href="/css/dashboard.css"
+    >
+
+</head>
+
+<body>
+
+<div class="app">
+
+    <header class="topbar">
+
+        <div class="brand">
+            <div class="brand-icon">◈</div>
+
+            <div>
+                <h1>Remote Control</h1>
+                <span>Device Management</span>
+            </div>
+        </div>
+
+        <div class="server-status">
+            <span class="status-dot"></span>
+            Server Online
+        </div>
+
+    </header>
+
+
+    <main class="content">
+
+        <div class="page-heading">
+
+            <div>
+                <h2>Connected Devices</h2>
+
+                <p>
+                    Manage your authorized connected devices.
+                </p>
+            </div>
+
+            <div class="device-count">
+                <strong><%= devices.length %></strong>
+                <span>connected</span>
+            </div>
+
+        </div>
+
+
+        <div class="devices-grid">
+
+            <% if (devices.length === 0) { %>
+
+                <div class="empty-state">
+
+                    <div class="empty-icon">◌</div>
+
+                    <h3>No devices connected</h3>
+
+                    <p>
+                        Waiting for background agents to connect.
+                    </p>
+
+                </div>
+
+            <% } %>
+
+
+            <% devices.forEach(device => { %>
+
+                <a
+                    class="device-card"
+                    href="/devices/<%= device.id %>"
+                >
+
+                    <div class="device-card-header">
+
+                        <div class="computer-icon">
+                            ▣
+                        </div>
+
+                        <span class="online-badge">
+                            <span></span>
+                            ONLINE
+                        </span>
+
+                    </div>
+
+
+                    <div class="device-info">
+
+                        <h3>
+                            <%= device.hostname %>
+                        </h3>
+
+                        <p>
+                            <%= device.platform %>
+                            ·
+                            <%= device.architecture %>
+                        </p>
+
+                    </div>
+
+
+                    <div class="device-footer">
+
+                        <span>
+                            Agent <%= device.agentVersion %>
+                        </span>
+
+                        <span class="arrow">
+                            →
+                        </span>
+
+                    </div>
+
+                </a>
+
+            <% }); %>
+
+        </div>
+
+    </main>
+
+</div>
+
+</body>
+</html>

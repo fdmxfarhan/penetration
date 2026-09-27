@@ -1,0 +1,4 @@
+{
+    "server": "ws://localhost:3000/agent",
+    "agentVersion": "0.1.0"
+}

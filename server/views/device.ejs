@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>
+        <%= device.hostname %>
+    </title>
+
+    <link rel="stylesheet" href="/css/dashboard.css">
+
+</head>
+
+<body>
+    <div class="app">
+
+        <header class="topbar">
+
+            <div class="brand">
+
+                <a href="/devices" class="back-button">
+                    ←
+                </a>
+
+                <div class="computer-icon header-icon">
+                    ▣
+                </div>
+
+                <div>
+
+                    <h1>
+                        <%= device.hostname %>
+                    </h1>
+
+                    <span>
+                        <%= device.platform %>
+                            ·
+                            <%= device.architecture %>
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            <div class="server-status">
+
+                <span class="status-dot"></span>
+
+                ONLINE
+
+            </div>
+
+        </header>
+
+
+        <main class="content">
+
+            <section class="device-overview">
+
+                <div>
+
+                    <span class="section-label">
+                        DEVICE
+                    </span>
+
+                    <h2>
+                        <%= device.hostname %>
+                    </h2>
+
+                    <p>
+                        Agent <%= device.agentVersion %>
+                            ·
+                            User <%= device.username %>
+                    </p>
+
+                </div>
+
+                <div class="device-id">
+
+                    <span>DEVICE ID</span>
+
+                    <code>
+                    <%= device.id %>
+                </code>
+
+                </div>
+
+            </section>
+
+
+            <section>
+
+                <div class="section-title">
+
+                    <h2>Controls</h2>
+
+                    <span>
+                        Authorized actions
+                    </span>
+
+                </div>
+
+
+                <div class="control-grid">
+
+
+                    <button id="microphoneButton" class="control-card microphone" type="button">
+
+                        <div class="control-icon">
+                            🎙
+                        </div>
+
+                        <div class="control-content">
+
+                            <h3>
+                                Microphone
+                            </h3>
+
+                            <p>
+                                Stream microphone audio
+                            </p>
+
+                        </div>
+
+                        <span class="control-arrow">
+                            →
+                        </span>
+
+                    </button>
+
+
+                    <button class="control-card" type="button" disabled>
+
+                        <div class="control-icon">
+                            📁
+                        </div>
+
+                        <div class="control-content">
+
+                            <h3>
+                                Files
+                            </h3>
+
+                            <p>
+                                Browse authorized files
+                            </p>
+
+                        </div>
+
+                        <span class="control-arrow">
+                            →
+                        </span>
+
+                    </button>
+
+
+                    <button class="control-card camera" type="button" disabled>
+
+                        <div class="control-icon">
+                            ◉
+                        </div>
+
+                        <div class="control-content">
+
+                            <h3>
+                                Camera
+                            </h3>
+
+                            <p>
+                                Stream camera video
+                            </p>
+
+                        </div>
+
+                        <span class="control-arrow">
+                            →
+                        </span>
+
+                    </button>
+
+
+                    <button class="control-card terminal" type="button" disabled>
+
+                        <div class="control-icon">
+                            &gt;_
+                        </div>
+
+                        <div class="control-content">
+
+                            <h3>
+                                Command
+                            </h3>
+
+                            <p>
+                                Authorized command interface
+                            </p>
+
+                        </div>
+
+                        <span class="control-arrow">
+                            →
+                        </span>
+
+                    </button>
+
+                </div>
+
+            </section>
+
+
+            <section class="terminal-panel">
+                <div class="terminal-header">
+                    <div>
+                        <span class="terminal-dot" id="terminalStatusDot"></span>
+                        Command Interface
+                    </div>
+
+                    <span id="terminalStatus">
+                        Connecting...
+                    </span>
+                </div>
+
+                <div class="terminal-body" id="terminalOutput">
+                    <div class="terminal-line">
+                        <span class="terminal-prompt">
+                            agent@<%= device.hostname %>:~$
+                        </span>
+                        <span>
+                            Connected to remote terminal.
+                        </span>
+                    </div>
+                </div>
+
+                <div class="terminal-input">
+                    <input id="terminalInput" type="text" placeholder="Enter command..." autocomplete="off"
+                        spellcheck="false">
+
+                    <button id="terminalSend" type="button">
+                        Send
+                    </button>
+                </div>
+            </section>
+
+        </main>
+
+    </div>
+    <audio id="microphoneAudio" autoplay></audio>
+    <script>
+
+        const deviceId =
+            "<%= device.id %>";
+
+
+        const microphoneButton =
+            document.getElementById(
+                "microphoneButton"
+            );
+
+
+        let microphoneSocket = null;
+
+        let audioContext = null;
+
+        let audioNode = null;
+
+        let microphoneRunning = false;
+
+
+        async function startMicrophone() {
+
+            audioContext =
+                new AudioContext({
+                    sampleRate: 16000
+                });
+
+
+            await audioContext.resume();
+
+
+            await audioContext.audioWorklet.addModule(
+                "/audio-processor.js"
+            );
+
+
+            audioNode =
+                new AudioWorkletNode(
+                    audioContext,
+                    "pcm-processor"
+                );
+
+
+            audioNode.connect(
+                audioContext.destination
+            );
+
+
+            const protocol =
+                location.protocol === "https:"
+                    ? "wss:"
+                    : "ws:";
+
+            const microphoneUrl =
+                `${protocol}//${location.host}/microphone?device=${encodeURIComponent(deviceId)}`;
+
+            microphoneSocket =
+                new WebSocket(microphoneUrl);
+
+            microphoneSocket.binaryType = "arraybuffer";
+
+
+            microphoneSocket.binaryType =
+                "arraybuffer";
+
+
+            microphoneSocket.onmessage =
+                (event) => {
+
+                    const bytes =
+                        new Uint8Array(
+                            event.data
+                        );
+
+
+                    const pcm =
+                        new Int16Array(
+                            bytes.buffer,
+                            bytes.byteOffset,
+                            Math.floor(
+                                bytes.byteLength / 2
+                            )
+                        );
+
+
+                    const samples =
+                        new Float32Array(
+                            pcm.length
+                        );
+
+
+                    for (
+                        let i = 0;
+                        i < pcm.length;
+                        i++
+                    ) {
+
+                        samples[i] =
+                            pcm[i] / 32768;
+
+                    }
+
+
+                    audioNode.port.postMessage(
+                        samples
+                    );
+
+                };
+
+
+            microphoneSocket.onclose =
+                () => {
+
+                    console.log(
+                        "Microphone stream closed"
+                    );
+
+                };
+
+
+            await fetch(
+                `/devices/${deviceId}/microphone/start`,
+                {
+                    method: "POST"
+                }
+            );
+
+
+            microphoneRunning = true;
+
+            microphoneButton.classList.add(
+                "active"
+            );
+
+        }
+
+
+        async function stopMicrophone() {
+
+            await fetch(
+                `/devices/${deviceId}/microphone/stop`,
+                {
+                    method: "POST"
+                }
+            );
+
+
+            if (microphoneSocket) {
+
+                microphoneSocket.close();
+
+                microphoneSocket = null;
+
+            }
+
+
+            if (audioNode) {
+
+                audioNode.disconnect();
+
+                audioNode = null;
+
+            }
+
+
+            if (audioContext) {
+
+                await audioContext.close();
+
+                audioContext = null;
+
+            }
+
+
+            microphoneRunning = false;
+
+            microphoneButton.classList.remove(
+                "active"
+            );
+
+        }
+
+
+        microphoneButton.addEventListener(
+            "click",
+            async () => {
+
+                if (microphoneRunning) {
+
+                    await stopMicrophone();
+
+                } else {
+
+                    await startMicrophone();
+
+                }
+
+            }
+        );
+
+
+        const terminalOutput =
+            document.getElementById("terminalOutput");
+
+        const terminalInput =
+            document.getElementById("terminalInput");
+
+        const terminalSend =
+            document.getElementById("terminalSend");
+
+        const terminalStatus =
+            document.getElementById("terminalStatus");
+
+        const terminalStatusDot =
+            document.getElementById("terminalStatusDot");
+
+        const protocol =
+            location.protocol === "https:"
+                ? "wss:"
+                : "ws:";
+
+        const terminalUrl =
+            `${protocol}//${location.host}/terminal?device=${encodeURIComponent(deviceId)}`;
+
+        const terminalSocket =
+            new WebSocket(terminalUrl);
+
+
+        function appendTerminal(text, className = "") {
+            const line = document.createElement("div");
+
+            line.className = "terminal-line";
+
+            if (className) {
+                line.classList.add(className);
+            }
+
+            line.textContent = text;
+
+            terminalOutput.appendChild(line);
+
+            terminalOutput.scrollTop =
+                terminalOutput.scrollHeight;
+        }
+
+
+        function setTerminalStatus(
+            connected
+        ) {
+            if (connected) {
+                terminalStatus.textContent =
+                    "Connected";
+
+                terminalStatusDot.classList.add(
+                    "connected"
+                );
+
+                terminalInput.disabled = false;
+                terminalSend.disabled = false;
+            } else {
+                terminalStatus.textContent =
+                    "Not connected";
+
+                terminalStatusDot.classList.remove(
+                    "connected"
+                );
+
+                terminalInput.disabled = true;
+                terminalSend.disabled = true;
+            }
+        }
+
+
+        terminalSocket.onopen = () => {
+            setTerminalStatus(true);
+
+            appendTerminal(
+                "Remote terminal connected."
+            );
+
+            terminalInput.focus();
+        };
+
+
+        terminalSocket.onclose = () => {
+            setTerminalStatus(false);
+
+            appendTerminal(
+                "Terminal connection closed.",
+                "terminal-error"
+            );
+        };
+
+
+        terminalSocket.onerror = () => {
+            setTerminalStatus(false);
+
+            appendTerminal(
+                "Terminal connection error.",
+                "terminal-error"
+            );
+        };
+
+
+        terminalSocket.onmessage = (event) => {
+            let message;
+
+            try {
+                message = JSON.parse(event.data);
+            } catch {
+                appendTerminal(
+                    event.data,
+                    "terminal-error"
+                );
+
+                return;
+            }
+
+            if (message.type === "terminal_output") {
+                appendTerminal(
+                    message.data,
+                    message.stream === "stderr"
+                        ? "terminal-error"
+                        : ""
+                );
+
+                return;
+            }
+
+            if (message.stdout) {
+                appendTerminal(
+                    message.stdout
+                );
+            }
+
+            if (message.stderr) {
+                appendTerminal(
+                    message.stderr,
+                    "terminal-error"
+                );
+            }
+
+            appendTerminal(
+                `[exit code: ${message.exitCode}]`,
+                "terminal-status"
+            );
+        };
+
+
+        async function sendCommand() {
+            const command =
+                terminalInput.value.trim();
+
+            if (!command) {
+                return;
+            }
+
+            if (
+                terminalSocket.readyState !==
+                WebSocket.OPEN
+            ) {
+                appendTerminal(
+                    "Terminal is not connected.",
+                    "terminal-error"
+                );
+
+                return;
+            }
+
+            appendTerminal(
+                `> ${command}`,
+                "terminal-command"
+            );
+
+            terminalInput.value = "";
+
+            try {
+                const response = await fetch(
+                    `/devices/${deviceId}/command`,
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type":
+                                "application/json"
+                        },
+                        body: JSON.stringify({
+                            command
+                        })
+                    }
+                );
+
+                if (!response.ok) {
+                    const error =
+                        await response.json();
+
+                    throw new Error(
+                        error.error ||
+                        "Command failed"
+                    );
+                }
+
+            } catch (error) {
+                appendTerminal(
+                    error.message,
+                    "terminal-error"
+                );
+            }
+
+            terminalInput.focus();
+        }
+
+
+        terminalSend.addEventListener(
+            "click",
+            sendCommand
+        );
+
+
+        terminalInput.addEventListener(
+            "keydown",
+            (event) => {
+                if (event.key === "Enter") {
+                    event.preventDefault();
+                    sendCommand();
+                }
+            }
+        );
+    </script>
+</body>
+
+</html>
