@@ -18,7 +18,17 @@ export class AgentManager {
     private agents = new Map<string, Agent>();
 
     register(agent: Agent) {
+        console.log("Registering agent:");
+        console.log("  ID:", agent.id);
+        console.log("  Hostname:", agent.hostname);
+    
         this.agents.set(agent.id, agent);
+    
+        console.log("Connected agents:", this.agents.size);
+    
+        for (const [id, a] of this.agents) {
+            console.log(`  ${id} -> ${a.hostname}`);
+        }
     }
 
     remove(id: string) {
