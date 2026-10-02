@@ -1246,3 +1246,105 @@ button {
         display: none;
     }
 }
+
+.screen-panel {
+    margin-top: 24px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--surface);
+    overflow: hidden;
+}
+
+.screen-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+}
+
+.screen-header > div {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+
+.screen-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #596273;
+}
+
+.screen-status-dot.connected {
+    background: var(--green);
+    box-shadow: 0 0 8px rgba(56, 217, 150, 0.5);
+}
+
+.screen-view {
+    min-height: 420px;
+    background: #05070b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+#screenImage {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: 70vh;
+    object-fit: contain;
+}
+
+.screen-placeholder {
+    min-height: 420px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    font-size: 14px;
+}
+
+.screen-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 16px;
+    border-top: 1px solid var(--border);
+}
+
+.screen-controls label {
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.screen-controls select,
+.screen-controls button {
+    height: 36px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+}
+
+.screen-controls select {
+    background: var(--surface-hover);
+    color: var(--text);
+    padding: 0 10px;
+}
+
+.screen-controls button {
+    padding: 0 14px;
+    background: var(--surface-hover);
+    color: var(--text);
+    cursor: pointer;
+}
+
+.screen-controls button:hover:not(:disabled) {
+    background: var(--border);
+}
+
+.screen-controls button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}

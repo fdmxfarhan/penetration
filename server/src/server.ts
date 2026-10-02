@@ -4,7 +4,7 @@ import WebSocket, { WebSocketServer } from "ws";
 import { AgentManager } from "./agents/AgentManager";
 const microphoneViewers = new Map<string, Set<WebSocket>>();
 const terminalViewers = new Map<string, Set<WebSocket>>();
-
+const screenViewers = new Map<string, Set<WebSocket>>();
 const PORT = 3011;
 
 const server = http.createServer(app);
@@ -14,6 +14,9 @@ export const agentManager = new AgentManager();
 const wss = new WebSocketServer({ noServer: true });
 const microphoneWss = new WebSocketServer({ noServer: true });
 const terminalWss = new WebSocketServer({ noServer: true });
+const screenWss = new WebSocketServer({ noServer: true });
+const screenAgentWss = new WebSocketServer({ noServer: true });
+
 server.on("upgrade", (request, socket, head) => {
     const url = new URL(
         request.url ?? "/",
@@ -31,7 +34,6 @@ server.on("upgrade", (request, socket, head) => {
 
         return;
     }
-
     if (url.pathname === "/microphone") {
         microphoneWss.handleUpgrade(
             request,
@@ -48,7 +50,6 @@ server.on("upgrade", (request, socket, head) => {
 
         return;
     }
-
     if (url.pathname === "/terminal") {
         terminalWss.handleUpgrade(
             request,
@@ -65,9 +66,40 @@ server.on("upgrade", (request, socket, head) => {
 
         return;
     }
+    if (url.pathname === "/screen-agent") {
+        screenAgentWss.handleUpgrade(
+            request,
+            socket,
+            head,
+            ws => {
+                screenAgentWss.emit(
+                    "connection",
+                    ws,
+                    request
+                );
+            }
+        );
+    
+        return;
+    }
+    if (url.pathname === "/screen") {
+        screenWss.handleUpgrade(
+            request,
+            socket,
+            head,
+            ws => {
+                screenWss.emit(
+                    "connection",
+                    ws,
+                    request
+                );
+            }
+        );
+    
+        return;
+    }
     socket.destroy();
 });
-
 wss.on("connection", (socket, request) => {
     console.log("Agent WebSocket connected");
 
@@ -101,10 +133,8 @@ wss.on("connection", (socket, request) => {
 
             return;
         }
-
         try {
             const message = JSON.parse(data.toString());
-
             console.log("Agent message:", message);
             if (message.type === "terminal_output") {
                 if (!registeredAgentId) {
@@ -211,7 +241,6 @@ wss.on("connection", (socket, request) => {
         console.error("Agent WebSocket error:", error);
     });
 });
-
 microphoneWss.on("connection", (socket, request) => {
     const url = new URL(
         request.url ?? "/",
@@ -279,7 +308,6 @@ microphoneWss.on("connection", (socket, request) => {
     });
 }
 );
-
 terminalWss.on("connection", (socket, request) => {
     const url = new URL(
         request.url ?? "/",
@@ -331,11 +359,124 @@ terminalWss.on("connection", (socket, request) => {
     });
 }
 );
-
 server.on("error", (error) => {
     console.error("HTTP server error:", error);
 });
+screenAgentWss.on("connection", (socket) => {
+    console.log("Screen agent WebSocket connected");
 
+    let registeredAgentId: string | null = null;
+
+    socket.on("message", (data, isBinary) => {
+
+        // Screen frame
+        if (isBinary) {
+
+            if (!registeredAgentId) {
+                return;
+            }
+
+            const viewers =
+                screenViewers.get(registeredAgentId);
+
+            if (!viewers) {
+                return;
+            }
+
+            for (const viewer of viewers) {
+                if (viewer.readyState === WebSocket.OPEN) {
+                    viewer.send(data);
+                }
+            }
+
+            return;
+        }
+
+        // Registration message
+        try {
+            const message = JSON.parse(
+                data.toString()
+            );
+
+            if (message.type === "screen_register") {
+
+                registeredAgentId =
+                    message.agentId;
+
+                console.log(
+                    `Screen agent registered: ${registeredAgentId}`
+                );
+            }
+
+        } catch (error) {
+            console.error(
+                "Failed to process screen agent message:",
+                error
+            );
+        }
+    });
+
+    socket.on("close", () => {
+        console.log(
+            `Screen agent disconnected: ${registeredAgentId ?? "unknown"}`
+        );
+    });
+
+    socket.on("error", error => {
+        console.error(
+            "Screen agent WebSocket error:",
+            error
+        );
+    });
+});
+screenWss.on(
+    "connection",
+    (ws, request) => {
+
+        const url = new URL(
+            request.url ?? "/",
+            `http://${request.headers.host}`
+        );
+
+        const deviceId =
+            url.searchParams.get("device");
+
+        if (!deviceId) {
+            ws.close();
+            return;
+        }
+
+        let viewers =
+            screenViewers.get(deviceId);
+
+        if (!viewers) {
+            viewers = new Set();
+            screenViewers.set(
+                deviceId,
+                viewers
+            );
+        }
+
+        viewers.add(ws);
+
+        console.log(
+            `Screen viewer connected: ${deviceId}`
+        );
+
+        ws.on("close", () => {
+
+            viewers?.delete(ws);
+
+            if (
+                viewers &&
+                viewers.size === 0
+            ) {
+                screenViewers.delete(deviceId);
+            }
+
+        });
+    }
+);
 server.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
 });

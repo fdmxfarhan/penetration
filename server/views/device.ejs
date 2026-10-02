@@ -159,33 +159,18 @@
                     </button>
 
 
-                    <button class="control-card camera" type="button" disabled>
-
+                    <button id="screenButton" class="control-card camera" type="button">
                         <div class="control-icon">
-                            ◉
+                            🖥
                         </div>
-
                         <div class="control-content">
-
-                            <h3>
-                                Camera
-                            </h3>
-
-                            <p>
-                                Stream camera video
-                            </p>
-
+                            <h3>Screen</h3>
+                            <p>View remote desktop</p>
                         </div>
-
-                        <span class="control-arrow">
-                            →
-                        </span>
-
+                        <span class="control-arrow">→</span>
                     </button>
 
-
                     <button class="control-card terminal" type="button" disabled>
-
                         <div class="control-icon">
                             &gt;_
                         </div>
@@ -212,7 +197,65 @@
 
             </section>
 
+            <section class="screen-panel" id="screenPanel">
 
+                <div class="screen-header">
+
+                    <div>
+                        <span class="screen-status-dot" id="screenStatusDot"></span>
+
+                        <span>
+                            Screen Capture
+                        </span>
+                    </div>
+
+                    <span id="screenStatus">
+                        Stopped
+                    </span>
+
+                </div>
+
+
+                <div class="screen-view">
+
+                    <div class="screen-placeholder" id="screenPlaceholder">
+                        Screen capture is stopped.
+                    </div>
+
+                    <img id="screenImage" alt="Remote screen">
+
+                </div>
+
+
+                <div class="screen-controls">
+
+                    <label for="screenFps">
+                        FPS
+                    </label>
+
+                    <select id="screenFps">
+
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="5" selected>5</option>
+                        <option value="10">10</option>
+                        <option value="15">15</option>
+                        <option value="20">20</option>
+                        <option value="30">30</option>
+
+                    </select>
+
+                    <button id="screenStart" type="button">
+                        Start Capture
+                    </button>
+
+                    <button id="screenStop" type="button" disabled>
+                        Stop
+                    </button>
+
+                </div>
+
+            </section>
             <section class="terminal-panel">
                 <div class="terminal-header">
                     <div>
@@ -678,6 +721,268 @@
                 }
             }
         );
+        const screenButton =
+            document.getElementById("screenButton");
+
+        const screenPanel =
+            document.getElementById("screenPanel");
+
+        const screenImage =
+            document.getElementById("screenImage");
+
+        const screenPlaceholder =
+            document.getElementById("screenPlaceholder");
+
+        const screenStatus =
+            document.getElementById("screenStatus");
+
+        const screenStatusDot =
+            document.getElementById("screenStatusDot");
+
+        const screenFps =
+            document.getElementById("screenFps");
+
+        const screenStart =
+            document.getElementById("screenStart");
+
+        const screenStop =
+            document.getElementById("screenStop");
+
+        let screenSocket = null;
+        let screenObjectUrl = null;
+        let screenRunning = false;
+
+
+        function setScreenStatus(running) {
+
+            screenRunning = running;
+
+            if (running) {
+
+                screenStatus.textContent =
+                    `${screenFps.value} FPS`;
+
+                screenStatusDot.classList.add(
+                    "connected"
+                );
+
+                screenStart.disabled = true;
+                screenStop.disabled = false;
+
+                screenPlaceholder.style.display =
+                    "none";
+
+                screenButton.classList.add(
+                    "active"
+                );
+
+            } else {
+
+                screenStatus.textContent =
+                    "Stopped";
+
+                screenStatusDot.classList.remove(
+                    "connected"
+                );
+
+                screenStart.disabled = false;
+                screenStop.disabled = true;
+
+                screenPlaceholder.style.display =
+                    "flex";
+
+                screenButton.classList.remove(
+                    "active"
+                );
+            }
+        }
+
+
+        function connectScreenSocket() {
+
+            const protocol =
+                location.protocol === "https:"
+                    ? "wss:"
+                    : "ws:";
+
+            const screenUrl =
+                `${protocol}//${location.host}/screen?device=${encodeURIComponent(deviceId)}`;
+
+            screenSocket =
+                new WebSocket(screenUrl);
+
+            screenSocket.binaryType =
+                "arraybuffer";
+
+
+            screenSocket.onmessage =
+                (event) => {
+
+                    if (!(event.data instanceof ArrayBuffer)) {
+                        return;
+                    }
+
+                    const blob =
+                        new Blob(
+                            [event.data],
+                            {
+                                type: "image/jpeg"
+                            }
+                        );
+
+                    const url =
+                        URL.createObjectURL(blob);
+
+                    if (screenObjectUrl) {
+                        URL.revokeObjectURL(
+                            screenObjectUrl
+                        );
+                    }
+
+                    screenObjectUrl = url;
+
+                    screenImage.src = url;
+                };
+
+
+            screenSocket.onclose =
+                () => {
+
+                    if (screenRunning) {
+                        setScreenStatus(false);
+                    }
+
+                };
+
+
+            screenSocket.onerror =
+                (error) => {
+
+                    console.error(
+                        "Screen socket error:",
+                        error
+                    );
+
+                };
+        }
+
+
+        async function startScreen() {
+
+            const fps =
+                Number(screenFps.value);
+
+            try {
+
+                const response =
+                    await fetch(
+                        `/devices/${deviceId}/screen/start`,
+                        {
+                            method: "POST",
+                            headers: {
+                                "Content-Type":
+                                    "application/json"
+                            },
+                            body: JSON.stringify({
+                                fps
+                            })
+                        }
+                    );
+
+                if (!response.ok) {
+
+                    const error =
+                        await response.json();
+
+                    throw new Error(
+                        error.error ||
+                        "Failed to start screen capture"
+                    );
+                }
+
+                setScreenStatus(true);
+
+            } catch (error) {
+
+                console.error(
+                    "Screen start failed:",
+                    error
+                );
+
+                alert(
+                    error instanceof Error
+                        ? error.message
+                        : "Failed to start screen capture"
+                );
+            }
+        }
+
+
+        async function stopScreen() {
+
+            try {
+
+                await fetch(
+                    `/devices/${deviceId}/screen/stop`,
+                    {
+                        method: "POST"
+                    }
+                );
+
+            } catch (error) {
+
+                console.error(
+                    "Screen stop failed:",
+                    error
+                );
+
+            }
+
+            setScreenStatus(false);
+        }
+
+
+        screenButton.addEventListener(
+            "click",
+            () => {
+
+                screenPanel.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start"
+                });
+
+            }
+        );
+
+
+        screenStart.addEventListener(
+            "click",
+            startScreen
+        );
+
+
+        screenStop.addEventListener(
+            "click",
+            stopScreen
+        );
+
+
+        screenFps.addEventListener(
+            "change",
+            async () => {
+
+                if (!screenRunning) {
+                    return;
+                }
+
+                await stopScreen();
+                await startScreen();
+
+            }
+        );
+
+
+        connectScreenSocket();
     </script>
 </body>
 

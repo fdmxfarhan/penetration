@@ -84,13 +84,28 @@ export function connect() {
         }
     });
     socket.on("close", (code, reason) => {
-        console.log(`Connection closed. Code: ${code}, Reason: ${reason.toString()}`);
+        console.log(
+            `Connection closed. Code: ${code}, Reason: ${reason.toString()}`
+        );
+
         stopShell();
+        stopScreenCapture();
+
+        if (screenSocket) {
+            screenSocket.close();
+            screenSocket = null;
+        }
+
         socket = null;
+
         setTimeout(() => {
             connect();
         }, reconnectDelay);
-        reconnectDelay = Math.min(reconnectDelay * 2, 30000);
+
+        reconnectDelay = Math.min(
+            reconnectDelay * 2,
+            30000
+        );
     });
     socket.on("error", (error) => {
         console.error("WebSocket error:", error);

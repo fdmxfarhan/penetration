@@ -120,5 +120,58 @@ router.post("/:id/command", (req, res) => {
         requestId
     });
 });
+router.post("/:id/screen/start",(req, res) => {
+        const agent = agentManager.get(req.params.id);
 
+        if (!agent) {
+            return res
+                .status(404)
+                .json({
+                    error: "Device is offline"
+                });
+        }
+
+        const fps =
+            typeof req.body.fps === "number"
+                ? Math.max(
+                    1,
+                    Math.min(30, req.body.fps)
+                )
+                : 5;
+
+        agent.socket.send(
+            JSON.stringify({
+                type: "screen_start",
+                fps
+            })
+        );
+
+        res.json({
+            success: true,
+            fps
+        });
+    }
+);
+router.post("/:id/screen/stop",(req, res) => {
+        const agent = agentManager.get(req.params.id);
+
+        if (!agent) {
+            return res
+                .status(404)
+                .json({
+                    error: "Device is offline"
+                });
+        }
+
+        agent.socket.send(
+            JSON.stringify({
+                type: "screen_stop"
+            })
+        );
+
+        res.json({
+            success: true
+        });
+    }
+);
 export default router;
