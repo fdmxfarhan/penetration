@@ -5,7 +5,7 @@ import { AgentManager } from "./agents/AgentManager";
 const microphoneViewers = new Map<string, Set<WebSocket>>();
 const terminalViewers = new Map<string, Set<WebSocket>>();
 
-const PORT = 3000;
+const PORT = 3011;
 
 const server = http.createServer(app);
 
@@ -74,17 +74,17 @@ wss.on("connection", (socket, request) => {
     let registeredAgentId: string | null = null;
 
     socket.on("message", (data, isBinary) => {
-        console.log(
-            `Agent message received: ${isBinary
-                ? `binary ${data.length} bytes`
-                : data.toString()
-            }`
-        );
+        // console.log(
+        //     `Agent message received: ${isBinary
+        //         ? `binary ${data.length} bytes`
+        //         : data.toString()
+        //     }`
+        // );
 
         if (isBinary) {
-            console.log(
-                `Received audio: ${data.length} bytes`
-            );
+            // console.log(
+            //     `Received audio: ${data.length} bytes`
+            // );
 
             if (registeredAgentId) {
                 const viewers =
