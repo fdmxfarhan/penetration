@@ -2,7 +2,11 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 
-const DATA_DIR = path.join(process.cwd(), "data");
+const DATA_DIR =
+    process.env.PROGRAMDATA
+        ? path.join(process.env.PROGRAMDATA, "PenetrationAgent")
+        : path.join(process.cwd(), "data");
+
 const ID_FILE = path.join(DATA_DIR, "agent-id");
 
 export function getAgentId(): string {
@@ -12,12 +16,16 @@ export function getAgentId(): string {
     }
 
     if (fs.existsSync(ID_FILE)) {
-        return fs.readFileSync(ID_FILE, "utf8").trim();
+        const existingId = fs.readFileSync(ID_FILE, "utf8").trim();
+
+        if (existingId) {
+            return existingId;
+        }
     }
 
     const agentId = crypto.randomUUID();
 
-    fs.writeFileSync(ID_FILE, agentId);
+    fs.writeFileSync(ID_FILE, agentId, "utf8");
 
     return agentId;
 }
